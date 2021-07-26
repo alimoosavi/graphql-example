@@ -1,13 +1,16 @@
-import React from "react";
+import React, {useContext} from "react";
 import Item from "./Item";
 import {Button, Paper} from "@material-ui/core";
 import {makeStyles} from "@material-ui/core/styles";
+import {useMutation} from "@apollo/client";
+import {ADD_ORDER, user} from "./graphql";
+import {AlertsContext} from "../Alert";
 
 const useStyles = makeStyles({
-    root:{
-      display: 'flex',
-      flexDirection: 'column',
-      width: '100%'
+    root: {
+        display: 'flex',
+        flexDirection: 'column',
+        width: '100%'
     },
     itemsWrapper: {
         display: 'flex',
@@ -24,7 +27,11 @@ const useStyles = makeStyles({
 
 const Items = (props) => {
     const classes = useStyles();
+
     const [items, setItems] = React.useState(props.items.map(item => ({...item, selected: false})))
+    const [addOrder, {}] = useMutation(ADD_ORDER);
+    const {openSuccessAlert, openErrorAlert} = useContext(AlertsContext);
+
     const toggleItem = React.useCallback((id) =>
             setItems(items => items.map(item => item.id === id ? {
                     ...item,
@@ -32,7 +39,21 @@ const Items = (props) => {
                 } : item
             )),
         [])
-    const orderItems = () => props.order(items.filter(item => item.selected).map(item => item.id))
+
+    const orderItems = async () => {
+        const selectedItem_ids = items.filter(item => item.selected).map(item => Number(item.id))
+
+        if (selectedItem_ids.length === 0)
+            openErrorAlert('pick some items to create order')
+        else {
+            try {
+                await addOrder({variables: {user, selectedItem_ids}});
+                openSuccessAlert('order submitted')
+            } catch (e) {
+                openErrorAlert('error has occurred while creating order')
+            }
+        }
+    }
 
     return (<div className={classes.root}>
         <Paper className={classes.itemsWrapper}>
